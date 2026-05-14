@@ -41,12 +41,32 @@ class AsignacionAulasTest extends AnyFunSuite {
   }
 
   // choques
-  test("choques: asignacion [0,0,1] tiene 1 choque (M01 y M02 en E101)") {
-    assert(choques(c1, Vector(0, 0, 1)) == 1)
+  test("choques: todos en la misma aula con solapamiento múltiple") {
+    // M01[4,8), M02[6,10), M03[5,7) — los 3 en aula 0, se solapan entre sí
+    val cursos = Vector(("M01", 4, 8, 25), ("M02", 6, 10, 30), ("M03", 5, 7, 20))
+    assert(choques(cursos, Vector(0, 0, 0)) == 3)
   }
 
-  test("choques: asignacion [0,1,0] no tiene choques") {
-    assert(choques(c1, Vector(0, 1, 0)) == 0)
+  test("choques: misma aula pero sin solapamiento") {
+    // M01[0,4) y M02[4,8) — adyacentes, no se solapan
+    val cursos = Vector(("M01", 0, 4, 25), ("M02", 4, 8, 30))
+    assert(choques(cursos, Vector(0, 0)) == 0)
+  }
+
+  test("choques: solapamiento pero en aulas distintas no cuenta") {
+    // M01[4,8) y M02[6,10) se solapan pero están en aulas diferentes
+    assert(choques(c1, Vector(0, 1, 1)) == 0)
+  }
+
+  test("choques: un solo curso no puede generar choques") {
+    val cursos = Vector(("M01", 4, 8, 25))
+    assert(choques(cursos, Vector(0)) == 0)
+  }
+
+  test("choques: cuatro cursos, dos pares en conflicto") {
+    // [0,6) y [4,8) en aula 0 se solapan — [2,5) y [3,7) en aula 1 se solapan
+    val cursos = Vector(("A", 0, 6, 10), ("B", 4, 8, 10), ("C", 2, 5, 10), ("D", 3, 7, 10))
+    assert(choques(cursos, Vector(0, 0, 1, 1)) == 2)
   }
 
   // capacidadFallida

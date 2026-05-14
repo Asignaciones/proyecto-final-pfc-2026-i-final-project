@@ -72,7 +72,15 @@ object AsignacionAulas {
    * Número de pares (i, j) con i < j tales que a(i) == a(j) >= 0
    * y los cursos i y j se solapan.
    */
-  def choques(cursos: Cursos, a: Asignacion): Int = ???
+  // AsignacionAulas.scala
+  def choques(cursos: Cursos, a: Asignacion): Int = {
+    val indices = cursos.indices.toVector
+    indices.flatMap { i =>
+      indices.filter { j =>
+        j > i && a(i) == a(j) && a(i) >= 0 && solapan(cursos(i), cursos(j))
+      }
+    }.length
+  }
 
   /** Cantidad de cursos cuya aula asignada tiene capacidad menor al número de estudiantes. */
   def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = ???
