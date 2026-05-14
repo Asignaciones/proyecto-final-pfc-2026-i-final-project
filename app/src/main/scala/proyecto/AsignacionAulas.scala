@@ -63,7 +63,10 @@ object AsignacionAulas {
   // ---------------------------------------------------------------------------
 
   /** Devuelve true sii los intervalos [ini1, fin1) y [ini2, fin2) se traslapan. */
-  def solapan(c1: Curso, c2: Curso): Boolean = ???
+  // AsignacionAulas.scala
+  def solapan(c1: Curso, c2: Curso): Boolean = {
+    iniCurso(c1) < finCurso(c2) && iniCurso(c2) < finCurso(c1)
+  }
 
   /**
    * Número de pares (i, j) con i < j tales que a(i) == a(j) >= 0

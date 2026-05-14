@@ -15,16 +15,29 @@ class AsignacionAulasTest extends AnyFunSuite {
   val w: Pesos      = (1000, 100, 1, 2)
 
   // solapan
-  test("solapan: M01[4,8) y M02[6,10) se solapan") {
-    assert(solapan(("M01", 4, 8, 25), ("M02", 6, 10, 30)))
+  test("solapan: solapamiento parcial al final del primero") {
+    // [0,6) y [4,10) se solapan en [4,6)
+    assert(solapan(("A", 0, 6, 10), ("B", 4, 10, 10)))
   }
 
-  test("solapan: M01[4,8) y M03[12,16) no se solapan") {
-    assert(!solapan(("M01", 4, 8, 25), ("M03", 12, 16, 20)))
+  test("solapan: un curso contenido completamente dentro de otro") {
+    // [2,10) contiene a [4,6) — deben solaparse
+    assert(solapan(("X", 2, 10, 15), ("Y", 4, 6, 10)))
   }
 
-  test("solapan: cursos adyacentes [0,4) y [4,8) no se solapan") {
-    assert(!solapan(("A", 0, 4, 10), ("B", 4, 8, 10)))
+  test("solapan: mismo horario exacto se solapa") {
+    // [4,8) y [4,8) — idénticos, se solapan
+    assert(solapan(("A", 4, 8, 20), ("B", 4, 8, 20)))
+  }
+
+  test("solapan: cursos sin contacto con brecha entre ellos no se solapan") {
+    // [0,4) y [6,10) — hay brecha de [4,6), no se solapan
+    assert(!solapan(("A", 0, 4, 10), ("B", 6, 10, 10)))
+  }
+
+  test("solapan: segundo curso empieza justo cuando el primero termina — no se solapan") {
+    // [6,10) termina en 10, [10,14) empieza en 10 — adyacentes sin intersección
+    assert(!solapan(("A", 6, 10, 25), ("B", 10, 14, 30)))
   }
 
   // choques
