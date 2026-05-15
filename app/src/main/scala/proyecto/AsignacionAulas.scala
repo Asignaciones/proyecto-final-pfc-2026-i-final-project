@@ -83,7 +83,12 @@ object AsignacionAulas {
   }
 
   /** Cantidad de cursos cuya aula asignada tiene capacidad menor al número de estudiantes. */
-  def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = ???
+  // AsignacionAulas.scala
+  def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+    cursos.indices.toVector.filter { i =>
+      a(i) >= 0 && capAula(aulas(a(i))) < estCurso(cursos(i))
+    }.length
+  }
 
   /**
    * Suma de (cap(aula_i) - est(curso_i)) para los cursos asignados

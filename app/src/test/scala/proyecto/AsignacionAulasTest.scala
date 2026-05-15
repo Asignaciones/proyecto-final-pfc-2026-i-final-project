@@ -70,8 +70,37 @@ class AsignacionAulasTest extends AnyFunSuite {
   }
 
   // capacidadFallida
-  test("capacidadFallida: asignacion [0,0,1] no falla capacidad") {
-    assert(capacidadFallida(c1, a1, Vector(0, 0, 1)) == 0)
+  test("capacidadFallida: todas las aulas con capacidad suficiente") {
+    // E101(30) >= M01(25), E102(40) >= M02(30), E101(30) >= M03(20)
+    assert(capacidadFallida(c1, a1, Vector(0, 1, 0)) == 0)
+  }
+
+  test("capacidadFallida: una aula insuficiente") {
+    // E101(30) < M02(30) es suficiente, pero E101(30) < 35 estudiantes falla
+    val cursos = Vector(("X", 0, 4, 35), ("Y", 4, 8, 20))
+    val aulas  = Vector(("E101", 30), ("E102", 40))
+    assert(capacidadFallida(cursos, aulas, Vector(0, 0)) == 1)
+  }
+
+  test("capacidadFallida: todas las aulas insuficientes") {
+    // aula de cap 10 no alcanza para ningún curso
+    val cursos = Vector(("A", 0, 4, 25), ("B", 4, 8, 30))
+    val aulas  = Vector(("E001", 10))
+    assert(capacidadFallida(cursos, aulas, Vector(0, 0)) == 2)
+  }
+
+  test("capacidadFallida: capacidad exactamente igual no falla") {
+    // cap == est → no es fallo
+    val cursos = Vector(("A", 0, 4, 30))
+    val aulas  = Vector(("E101", 30))
+    assert(capacidadFallida(cursos, aulas, Vector(0)) == 0)
+  }
+
+  test("capacidadFallida: ejemplo 2 del enunciado asignacion [0,1,0,1] tiene 1 fallo") {
+    val c2 = Vector(("F01", 0, 4, 40), ("F02", 4, 8, 25), ("F03", 8, 12, 50), ("F04", 12, 16, 15))
+    val a2 = Vector(("S201", 45), ("S202", 30))
+    // F03(50) en S201(45) → falla
+    assert(capacidadFallida(c2, a2, Vector(0, 1, 0, 1)) == 1)
   }
 
   // desperdicio
