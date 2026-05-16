@@ -63,7 +63,6 @@ object AsignacionAulas {
   // ---------------------------------------------------------------------------
 
   /** Devuelve true sii los intervalos [ini1, fin1) y [ini2, fin2) se traslapan. */
-  // AsignacionAulas.scala
   def solapan(c1: Curso, c2: Curso): Boolean = {
     iniCurso(c1) < finCurso(c2) && iniCurso(c2) < finCurso(c1)
   }
@@ -72,7 +71,6 @@ object AsignacionAulas {
    * Número de pares (i, j) con i < j tales que a(i) == a(j) >= 0
    * y los cursos i y j se solapan.
    */
-  // AsignacionAulas.scala
   def choques(cursos: Cursos, a: Asignacion): Int = {
     val indices = cursos.indices.toVector
     indices.flatMap { i =>
@@ -83,7 +81,6 @@ object AsignacionAulas {
   }
 
   /** Cantidad de cursos cuya aula asignada tiene capacidad menor al número de estudiantes. */
-  // AsignacionAulas.scala
   def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
     cursos.indices.toVector.filter { i =>
       a(i) >= 0 && capAula(aulas(a(i))) < estCurso(cursos(i))
@@ -94,7 +91,13 @@ object AsignacionAulas {
    * Suma de (cap(aula_i) - est(curso_i)) para los cursos asignados
    * con capacidad suficiente.
    */
-  def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = ???
+  def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+    cursos.indices.toVector.filter { i =>
+      a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i))
+    }.map { i =>
+      capAula(aulas(a(i))) - estCurso(cursos(i))
+    }.sum
+  }
 
   /**
    * Ordena los cursos asignados por hora de inicio y suma las distancias

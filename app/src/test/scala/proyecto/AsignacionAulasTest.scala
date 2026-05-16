@@ -104,14 +104,37 @@ class AsignacionAulasTest extends AnyFunSuite {
   }
 
   // desperdicio
-  test("desperdicio: asignacion [0,0,1] tiene desperdicio 25") {
-    // E101(30)-M01(25)=5, E101(30)-M02(30)=0, E102(40)-M03(20)=20 → 25
-    assert(desperdicio(c1, a1, Vector(0, 0, 1)) == 25)
+  test("desperdicio: aula exactamente del tamaño del curso no desperdicia") {
+    val cursos = Vector(("A", 0, 4, 30))
+    val aulas  = Vector(("E101", 30))
+    assert(desperdicio(cursos, aulas, Vector(0)) == 0)
   }
 
-  test("desperdicio: asignacion [0,1,0] tiene desperdicio 25") {
-    // E101(30)-M01(25)=5, E102(40)-M02(30)=10, E101(30)-M03(20)=10 → 25
-    assert(desperdicio(c1, a1, Vector(0, 1, 0)) == 25)
+  test("desperdicio: curso con aula insuficiente no suma al desperdicio") {
+    // F03(50) en S201(45) — cap < est, no cuenta
+    val c2 = Vector(("F03", 8, 12, 50))
+    val a2 = Vector(("S201", 45))
+    assert(desperdicio(c2, a2, Vector(0)) == 0)
+  }
+
+  test("desperdicio: ejemplo 2 del enunciado asignacion [0,1,0,1]") {
+    val c2 = Vector(("F01", 0, 4, 40), ("F02", 4, 8, 25), ("F03", 8, 12, 50), ("F04", 12, 16, 15))
+    val a2 = Vector(("S201", 45), ("S202", 30))
+    // F01: 45-40=5, F02: 30-25=5, F03: falla cap no cuenta, F04: 30-15=15 → 25
+    assert(desperdicio(c2, a2, Vector(0, 1, 0, 1)) == 25)
+  }
+
+  test("desperdicio: un solo curso con mucho espacio sobrante") {
+    val cursos = Vector(("A", 0, 4, 5))
+    val aulas  = Vector(("E101", 50))
+    assert(desperdicio(cursos, aulas, Vector(0)) == 45)
+  }
+
+  test("desperdicio: varios cursos todos con sobrante") {
+    val cursos = Vector(("A", 0, 4, 10), ("B", 4, 8, 20), ("C", 8, 12, 30))
+    val aulas  = Vector(("E101", 40))
+    // 40-10=30, 40-20=20, 40-30=10 → 60
+    assert(desperdicio(cursos, aulas, Vector(0, 0, 0)) == 60)
   }
 
   // costoAsignacion
