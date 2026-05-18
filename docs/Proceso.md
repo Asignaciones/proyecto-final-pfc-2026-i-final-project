@@ -1,127 +1,310 @@
-# Informe de proceso Algoritmo Factorial con Recursión de Cola
+# Informe de Proceso — Proyecto Final
 
-## Definición del Algoritmo
+**Fundamentos de Programación Funcional y Concurrente**  
+**Tema:** Asignación Óptima de Aulas
 
-```Scala
-def factorial(n: Int): BigInt = {
-  @annotation.tailrec
-  def loop(x: Int, acumulador: BigInt): BigInt = {
-    if (x <= 1) acumulador
-    else loop(x - 1, acumulador * x)
-  }
-  loop(n, 1)
+---
+
+## Integrante 1 — `solapan`, `choques`, `capacidadFallida`, `desperdicio`
+
+---
+
+### `solapan`
+
+**Implementación:**
+
+```scala
+def solapan(c1: Curso, c2: Curso): Boolean = {
+  iniCurso(c1) < finCurso(c2) && iniCurso(c2) < finCurso(c1)
 }
 ```
 
-- La función `factorial` calcula el factorial de un número `n` utilizando **recursión de cola**.
-- La función interna `loop` es la que hace la recursión:
-  - Recibe dos parámetros:
-    - `x`: el valor actual decreciente hasta llegar a 1.
-    - `acumulador`: donde se guarda el resultado parcial en cada paso.
+**Enfoque (expresión booleana directa):**
 
-- El decorador `@annotation.tailrec` obliga a que la función sea optimizada como recursión de cola, es decir, **no se acumulan llamados en la pila**.
+`solapan` no es recursiva ni usa funciones de alto orden — evalúa directamente la
+condición matemática de intersección de intervalos semiabiertos:
 
-## Explicación paso a paso
+$$
+\text{solapan}(c_1, c_2) \iff \text{ini}_{c_1} < \text{fin}_{c_2} \;\land\; \text{ini}_{c_2} < \text{fin}_{c_1}
+$$
 
-### Caso base
-
-```Scala
-if (x <= 1) acumulador
-```
-
-Cuando `x` llega a `1`, la función retorna directamente el valor acumulado, evitando más llamadas.
-
-### Caso recursivo
-
-```Scala
-loop(x - 1, acumulador * x)
-```
-
-En cada llamada:
-
-- Se reduce el valor de `x` en 1.
-- Se multiplica el acumulador por `x` y se pasa a la siguiente iteración.
-- Como es recursión de cola, la llamada recursiva es la **última instrucción** en ejecutarse, lo que permite a Scala optimizar la pila.
+El operador `&&` aplica cortocircuito: si la primera condición es `false`, la segunda
+no se evalúa.
 
 ---
 
-## Llamados de pila en recursión de cola
+### Traza de `solapan` — caso con solapamiento
 
-Ejemplo:
+**Entrada:** $c_1 = \langle\text{M01}, 4, 8, 25\rangle$, $c_2 = \langle\text{M02}, 6, 10, 30\rangle$
 
-```Scala
-factorial(5)
-```
+| Paso | Expresión | Valor |
+|------|-----------|-------|
+| 1 | `iniCurso(M01) < finCurso(M02)` → `4 < 10` | `true` |
+| 2 | `iniCurso(M02) < finCurso(M01)` → `6 < 8`  | `true` |
+| 3 | `true && true` | `true` |
 
-### Paso 1: Llamada inicial
+**Resultado:** `true` ✓
 
-```Scala
-loop(5, 1)
-```
+---
 
-### Paso 2: Primera iteración
+### Traza de `solapan` — caso sin solapamiento
 
-```Scala
-loop(4, 5)   // acumulador = 1 * 5
-```
+**Entrada:** $c_1 = \langle\text{M01}, 4, 8, 25\rangle$, $c_3 = \langle\text{M03}, 12, 16, 20\rangle$
 
-### Paso 3: Segunda iteración
+| Paso | Expresión | Valor |
+|------|-----------|-------|
+| 1 | `iniCurso(M01) < finCurso(M03)` → `4 < 16` | `true` |
+| 2 | `iniCurso(M03) < finCurso(M01)` → `12 < 8` | `false` |
+| 3 | `true && false` (cortocircuito) | `false` |
 
-```Scala
-loop(3, 20)  // acumulador = 5 * 4
-```
+**Resultado:** `false` ✓
 
-### Paso 4: Tercera iteración
+---
 
-```Scala
-loop(2, 60)  // acumulador = 20 * 3
-```
+### Diagrama de evaluación de `solapan`
 
-### Paso 5: Cuarta iteración
-
-```Scala
-loop(1, 120) // acumulador = 60 * 2
-```
-
-### Paso 6: Caso base
-
-```Scala
-return 120
+```mermaid
+flowchart TD
+    A["solapan(c1, c2)"]
+    A --> B["iniCurso(c1) < finCurso(c2)?"]
+    B -->|"false"| C["return false\n(cortocircuito)"]
+    B -->|"true"| D["iniCurso(c2) < finCurso(c1)?"]
+    D -->|"false"| E["return false"]
+    D -->|"true"| F["return true"]
 ```
 
 ---
 
-## Diferencia con recursión normal
+### `choques`
 
-- En **recursión normal** cada llamada queda en la pila esperando a que termine la siguiente, lo que puede causar desbordamiento si `n` es muy grande.
-- En **recursión de cola**, el compilador transforma el proceso en un **bucle optimizado**, por lo que no se guarda cada llamada en la pila y el algoritmo puede ejecutarse para valores muy grandes sin problema.
+**Implementación:**
+
+```scala
+def choques(cursos: Cursos, a: Asignacion): Int = {
+  val indices = cursos.indices.toVector
+  indices.flatMap { i =>
+    indices.filter { j =>
+      j > i && a(i) == a(j) && a(i) >= 0 && solapan(cursos(i), cursos(j))
+    }
+  }.length
+}
+```
+
+**Equivalente conceptual con `flatMap` y `filter` (dos generadores con guarda):**
+
+```scala
+indices.flatMap(i =>
+  indices
+    .filter(j => j > i && a(i) == a(j) && a(i) >= 0 && solapan(cursos(i), cursos(j)))
+)
+.length
+```
+
+**Regla aplicada:**
+
+> Para cada $i$, `flatMap` produce la sublista de $j$ que cumplen la condición.
+> La concatenación de todas las sublistas da exactamente los pares $(i,j)$ con $i < j$
+> que comparten aula y se solapan. `.length` los cuenta.
+
+$$
+\text{CH}^\alpha_C = \bigl|\{(i,j) \mid 0 \le i < j < n,\; \alpha_i = \alpha_j,\; \alpha_i \ge 0,\; c_i \text{ solapa con } c_j\}\bigr|
+$$
 
 ---
 
-## Ejemplo de uso
+### Traza de `choques`
 
-```Scala
-val resultado = factorial(5)
-println(resultado)  // 120
-```
+**Entrada:** $C_1 = \langle\langle\text{M01},4,8,25\rangle,\langle\text{M02},6,10,30\rangle,\langle\text{M03},12,16,20\rangle\rangle$, $\alpha = \langle 0,0,1 \rangle$
 
-El resultado de `factorial(5)` es `120`.
+| Paso | $i$ | $j$ | `j > i` | `a(i)==a(j)` | `a(i)>=0` | `solapan` | Cuenta |
+|------|-----|-----|---------|-------------|----------|-----------|--------|
+| 1 | 0 | 1 | ✓ | `0==0` ✓ | ✓ | M01∩M02 ✓ | **sí** |
+| 2 | 0 | 2 | ✓ | `0==1` ✗ | — | — | no |
+| 3 | 1 | 2 | ✓ | `0==1` ✗ | — | — | no |
 
-## Diagrama de llamados de pila con recursión de cola
+**Resultado:** `Vector(1).length` → **1** ✓
+
+---
+
+### Diagrama de llamados de `choques`
 
 ```mermaid
 sequenceDiagram
-    participant Main as factorial(5)
-    participant L1 as loop(5, 1)
-    participant L2 as loop(4, 5)
-    participant L3 as loop(3, 20)
-    participant L4 as loop(2, 60)
-    participant L5 as loop(1, 120)
+    participant Main as choques(C1, α=[0,0,1])
+    participant FM0  as flatMap i=0
+    participant FM1  as flatMap i=1
+    participant FM2  as flatMap i=2
+    participant R    as resultado
 
-    Main->>L1: llamada inicial
-    L1->>L2: tail call con (4, 5)
-    L2->>L3: tail call con (3, 20)
-    L3->>L4: tail call con (2, 60)
-    L4->>L5: tail call con (1, 120)
-    L5-->>Main: return 120
+    Main->>FM0: evaluar j ∈ {0,1,2} con i=0
+    FM0-->>Main: Vector(1)  ← par (0,1) cumple todas las condiciones
+
+    Main->>FM1: evaluar j ∈ {0,1,2} con i=1
+    FM1-->>Main: Vector()   ← a(1)=0 ≠ a(2)=1
+
+    Main->>FM2: evaluar j ∈ {0,1,2} con i=2
+    FM2-->>Main: Vector()   ← sin j > 2
+
+    Main->>R: concat → Vector(1) → .length → 1
+```
+
+---
+
+### `capacidadFallida`
+
+**Implementación:**
+
+```scala
+def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+  cursos.indices.toVector.filter { i =>
+    a(i) >= 0 && capAula(aulas(a(i))) < estCurso(cursos(i))
+  }.length
+}
+```
+
+**Equivalente con `filter`:**
+
+```scala
+cursos.indices.toVector
+  .filter(i => a(i) >= 0 && capAula(aulas(a(i))) < estCurso(cursos(i)))
+  .length
+```
+
+**Regla aplicada:**
+
+> `filter` retiene los índices $i$ donde el curso está asignado y su aula tiene
+> capacidad insuficiente. `.length` cuenta los fallos.
+
+$$
+\text{CF}^\alpha_{C,A} = \bigl|\{i \mid \alpha_i \ge 0 \;\land\; \text{cap}_{A_{\alpha_i}} < \text{est}_{c_i}\}\bigr|
+$$
+
+---
+
+### Traza de `capacidadFallida`
+
+**Entrada (Ejemplo 2 del enunciado):**  
+$A_2 = \langle\langle\text{S201},45\rangle,\langle\text{S202},30\rangle\rangle$, $\alpha = \langle 0,1,0,1 \rangle$
+
+| Paso | $i$ | Curso | Aula | cap | est | `cap < est` | Acción |
+|------|-----|-------|------|-----|-----|------------|--------|
+| 1 | 0 | F01 | S201 | 45 | 40 | `false` | descarta |
+| 2 | 1 | F02 | S202 | 30 | 25 | `false` | descarta |
+| 3 | 2 | F03 | S201 | 45 | 50 | `true`  | **conserva** |
+| 4 | 3 | F04 | S202 | 30 | 15 | `false` | descarta |
+
+**Resultado:** `Vector(2).length` → **1** ✓
+
+---
+
+### Diagrama de llamados de `capacidadFallida`
+
+```mermaid
+sequenceDiagram
+    participant Main as capacidadFallida(C2, A2, α)
+    participant F0   as filter i=0
+    participant F1   as filter i=1
+    participant F2   as filter i=2
+    participant F3   as filter i=3
+    participant R    as resultado
+
+    Main->>F0: cap(S201)=45 < est(F01)=40?
+    F0-->>Main: false ✗ — descartado
+
+    Main->>F1: cap(S202)=30 < est(F02)=25?
+    F1-->>Main: false ✗ — descartado
+
+    Main->>F2: cap(S201)=45 < est(F03)=50?
+    F2-->>Main: true ✓ — conservado
+
+    Main->>F3: cap(S202)=30 < est(F04)=15?
+    F3-->>Main: false ✗ — descartado
+
+    Main->>R: Vector(2) → .length → 1
+```
+
+---
+
+### `desperdicio`
+
+**Implementación:**
+
+```scala
+def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+  cursos.indices.toVector.filter { i =>
+    a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i))
+  }.map { i =>
+    capAula(aulas(a(i))) - estCurso(cursos(i))
+  }.sum
+}
+```
+
+**Equivalente con `filter` → `map` → `sum`:**
+
+```scala
+cursos.indices.toVector
+  .filter(i => a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i)))
+  .map(i => capAula(aulas(a(i))) - estCurso(cursos(i)))
+  .sum
+```
+
+**Regla aplicada:**
+
+> `filter` selecciona los cursos con capacidad suficiente (diferencia $\ge 0$).
+> `map` transforma cada índice en su desperdicio individual.
+> `sum` acumula el total.
+> El $\max(\cdot,0)$ de la especificación queda implícito: `filter` excluye
+> los casos donde la diferencia sería negativa.
+
+$$
+\text{DE}^\alpha_{C,A} = \sum_{\substack{i=0\\\alpha_i \ge 0}}^{n-1} \max\!\bigl(\text{cap}_{A_{\alpha_i}} - \text{est}_{c_i},\; 0\bigr)
+$$
+
+---
+
+### Traza de `desperdicio`
+
+**Entrada:** $A_1 = \langle\langle\text{E101},30\rangle,\langle\text{E102},40\rangle\rangle$, $\alpha = \langle 0,0,1 \rangle$
+
+**Paso 1 — `filter` (cap ≥ est):**
+
+| $i$ | Curso | cap | est | `cap >= est` | Acción |
+|-----|-------|-----|-----|-------------|--------|
+| 0 | M01 | 30 | 25 | `true`  | conserva |
+| 1 | M02 | 30 | 30 | `true`  | conserva |
+| 2 | M03 | 40 | 20 | `true`  | conserva |
+
+**Paso 2 — `map` (cap − est):**
+
+| $i$ | cap − est | Valor |
+|-----|-----------|-------|
+| 0 | 30 − 25 | 5 |
+| 1 | 30 − 30 | 0 |
+| 2 | 40 − 20 | 20 |
+
+**Paso 3 — `sum`:**
+
+$$5 + 0 + 20 = \mathbf{25}$$
+
+**Resultado:** **25** ✓
+
+---
+
+### Diagrama de llamados de `desperdicio`
+
+```mermaid
+sequenceDiagram
+    participant Main as desperdicio(C1, A1, α=[0,0,1])
+    participant FIL  as filter
+    participant MAP  as map
+    participant SUM  as sum
+
+    Main->>FIL: seleccionar i donde a(i)>=0 ∧ cap>=est
+    FIL-->>Main: Vector(0, 1, 2) — todos pasan
+
+    Main->>MAP: cap(i) - est(i) para cada i
+    MAP-->>Main: Vector(5, 0, 20)
+
+    Main->>SUM: 5 + 0 + 20
+    SUM-->>Main: return 25
 ```

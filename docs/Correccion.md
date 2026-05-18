@@ -1,191 +1,309 @@
-# Ejemplo informe de corrección
+# Informe de Corrección — Proyecto Final
 
 **Fundamentos de Programación Funcional y Concurrente**  
-Documento realizado por el docente Juan Francisco Díaz.
+**Tema:** Asignación Óptima de Aulas
 
 ---
 
-## Argumentación de corrección de programas
-
-### Argumentando sobre corrección de programas recursivos
-
-Sea $f : A \to B$ una función, y $A$ un conjunto definido recursivamente (recordar definición de matemáticas discretas I), como por ejemplo los naturales o las listas.
-
-Sea $P_f$ un programa recursivo (lineal o en árbol) desarrollado en Scala (o en cualquier lenguaje de programación) hecho para calcular $f$:
-
-```scala
-def Pf(a: A): B = { // Pf recibe a de tipo A, y devuelve f(a) de tipo B
-  ...
-}
-```
-
-¿Cómo argumentar que \$P_f(a)\$ siempre devuelve \$f(a)\$ como respuesta? Es decir, ¿cómo argumentar que \$P_f\$ es correcto con respecto a su especificación?
-
-La respuesta es sencilla, demostrando el siguiente teorema:
-
-$$
-\forall a \in A : P_f(a) == f(a)
-$$
-
-Cuando uno tiene que demostrar que algo se cumple para todos los elementos de un conjunto definido recursivamente, es natural usar **inducción estructural**.
-
-En términos prácticos, esto significa demostrar que:
-
-- Para cada valor básico \$a\$ de \$A\$, se tiene que \$P_f(a) == f(a)\$.
-- Para cada valor \$a \in A\$ construido recursivamente a partir de otro(s) valor(es) \$a' \in A\$, se tiene que \$P_f(a') == f(a') \rightarrow P_f(a) == f(a)\$ (hipótesis de inducción).
+## Integrante 1 — `solapan`, `choques`, `capacidadFallida`, `desperdicio`
 
 ---
 
-#### Ejemplo: Factorial Recursivo
+### Corrección de `solapan`
 
-Sea \$f : \mathbb{N} \to \mathbb{N}\$ la función que calcula el factorial de un número natural, \$f(n) = n!\$.
+**Especificación:** dados dos cursos $c_1$ y $c_2$, la función debe devolver `true` si y
+solo si sus intervalos de tiempo tienen intersección no vacía:
 
-Programa en Scala:
+$$
+\text{solapan}(c_1, c_2) = \text{true} \iff \text{ini}_{c_1} < \text{fin}_{c_2} \;\land\; \text{ini}_{c_2} < \text{fin}_{c_1}
+$$
+
+**Implementación:**
 
 ```scala
-def Pf(n: Int): Int = {
-  if (n == 0) 1 else n * Pf(n - 1)
-}
+def solapan(c1: Curso, c2: Curso): Boolean =
+  iniCurso(c1) < finCurso(c2) && iniCurso(c2) < finCurso(c1)
 ```
 
-Queremos demostrar que:
+**Argumento de corrección:**
+
+La implementación traduce directamente la especificación matemática. Dos intervalos
+semiabiertos $[\text{ini}_1, \text{fin}_1)$ y $[\text{ini}_2, \text{fin}_2)$ tienen
+intersección no vacía si y solo si ninguno termina antes de que el otro comience:
 
 $$
-\forall n \in \mathbb{N} : P_f(n) == n!
+[\text{ini}_1, \text{fin}_1) \cap [\text{ini}_2, \text{fin}_2) \neq \emptyset
+\iff \text{ini}_1 < \text{fin}_2 \;\land\; \text{ini}_2 < \text{fin}_1
 $$
 
-- **Caso base**: \$n = 0\$
+El operador `&&` con cortocircuito produce exactamente el mismo valor de verdad que
+$\land$. Por tanto la función es correcta.
 
-$$
-P_f(0) \to 1 \quad \land \quad f(0) = 0! = 1
-$$
+**Casos borde:**
 
-Entonces \$P_f(0) == f(0)\$.
-
-- **Caso inductivo**: \$n = k+1\$, \$k \geq 0\$.
-
-$$
-P_f(k+1) \to (k+1) \cdot P_f(k)
-$$
-
-Usando la hipótesis de inducción:
-
-$$
-\to (k+1) \cdot k! = (k+1)!
-$$
-
-Por lo tanto, \$P_f(k+1) == f(k+1)\$.
-
-**Conclusión**: \$\forall n \in \mathbb{N} : P_f(n) == n!\$
+- Intervalos adyacentes $[0,4)$ y $[4,8)$: $0 < 8 \land 4 < 4$ → `true ∧ false` → `false` ✓
+- Contención total $[2,10)$ y $[4,6)$: $2 < 6 \land 4 < 10$ → `true` ✓
+- Mismos límites $[4,8)$ y $[4,8)$: $4 < 8 \land 4 < 8$ → `true` ✓
 
 ---
 
-#### Ejemplo: El máximo de una lista
+### Corrección de `choques`
 
-Sea \$f : \text{List}\[\mathbb{N}] \to \mathbb{N}\$ la función que calcula el máximo de una lista no vacía.
+**Especificación:** el número de pares de cursos que comparten aula y se solapan:
 
-Programa en Scala:
+$$
+\text{CH}^\alpha_C = \bigl|\{(i,j) \mid 0 \le i < j < n,\; \alpha_i = \alpha_j,\; \alpha_i \ge 0,\; c_i \text{ solapa con } c_j\}\bigr|
+$$
+
+**Implementación:**
 
 ```scala
-def maxLin(l: List[Int]): Int = {
-  if (l.tail.isEmpty) l.head
-  else math.max(maxLin(l.tail), l.head)
+def choques(cursos: Cursos, a: Asignacion): Int = {
+  val indices = cursos.indices.toVector
+  indices.flatMap { i =>
+    indices.filter { j =>
+      j > i && a(i) == a(j) && a(i) >= 0 && solapan(cursos(i), cursos(j))
+    }
+  }.length
 }
 ```
 
-Queremos demostrar que:
+**Argumento de corrección:**
+
+Por la regla de traducción de `flatMap` con `filter`:
 
 $$
-\forall n \in \mathbb{N} \setminus \{0\} :
-P_f(\text{List}(a_1, \ldots, a_n)) == f(\text{List}(a_1, \ldots, a_n))
+\texttt{indices.flatMap}(i \Rightarrow \texttt{indices.filter}(j \Rightarrow P(i,j)))
 $$
 
-- **Caso base**: \$n=1\$.
+produce exactamente la lista de $j$ que satisfacen $P(i,j)$ para cada $i$, concatenada
+en orden. Las condiciones del `filter` corresponden exactamente a la especificación:
+
+| Condición en código | Condición en especificación |
+|:-------------------:|:---------------------------:|
+| `j > i` | $i < j$ |
+| `a(i) == a(j)` | $\alpha_i = \alpha_j$ |
+| `a(i) >= 0` | $\alpha_i \ge 0$ |
+| `solapan(cursos(i), cursos(j))` | $c_i$ solapa con $c_j$ |
+
+Cada par $(i,j)$ con $i < j$ se genera exactamente una vez (cuando el índice externo
+es $i$), por lo que no hay duplicados. `.length` cuenta los pares válidos.
+
+**Conclusión:** $\forall\, C, \alpha : P_{\text{choques}}(C, \alpha) = \text{CH}^\alpha_C$ ✓
+
+**Verificación cuantitativa con Ejemplo 1:**
 
 $$
-P_f(\text{List}(a_1)) \to a_1 \quad \land \quad f(\text{List}(a_1)) = a_1
+n = 3,\; m = 2 \implies \binom{3}{2} = 3 \text{ pares posibles}
 $$
 
-- **Caso inductivo**: \$n=k+1\$.
-
-$$
-P_f(L) \to \text{math.max}(P_f(\text{List}(a_2, \ldots, a_{k+1})), a_1)
-$$
-
-Dependiendo del mayor entre \$a_1\$ y \$b\$ (el máximo del resto de la lista), se cumple que \$P_f(L) == f(L)\$.
-
-**Conclusión**:
-
-$$
-\forall n \in \mathbb{N} \setminus \{0\} : P_f(\text{List}(a_1, \ldots, a_n)) == f(\text{List}(a_1, \ldots, a_n))
-$$
+Solo el par $(0,1)$ cumple todas las condiciones → $\text{CH} = 1$. La implementación
+produce 1. ✓
 
 ---
 
-### Argumentando sobre corrección de programas iterativos
+### Corrección de `capacidadFallida`
 
-Para argumentar la corrección de programas iterativos, se debe formalizar cómo es la iteración:
+**Especificación:** número de cursos cuya aula asignada no tiene capacidad suficiente:
 
-- Representación de un estado \$s\$.
-- Estado inicial \$s_0\$.
-- Estado final \$s_f\$.
-- Invariante de la iteración \$\text{Inv}(s)\$.
-- Transformación de estados \$\text{transformar}(s)\$.
+$$
+\text{CF}^\alpha_{C,A} = \bigl|\{i \mid 0 \le i < n,\; \alpha_i \ge 0,\; \text{cap}_{A_{\alpha_i}} < \text{est}_{c_i}\}\bigr|
+$$
 
-Programa iterativo genérico:
+**Implementación:**
 
 ```scala
-def Pf(a: A): B = {
-  def Pf_iter(s: Estado): B =
-    if (esFinal(s)) respuesta(s) else Pf_iter(transformar(s))
-  Pf_iter(s0)
+def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+  cursos.indices.toVector.filter { i =>
+    a(i) >= 0 && capAula(aulas(a(i))) < estCurso(cursos(i))
+  }.length
 }
 ```
+
+**Argumento de corrección:**
+
+`cursos.indices.toVector` genera $\{0,\ldots,n-1\}$, el dominio completo de índices.
+El `filter` retiene exactamente los $i$ donde:
+
+1. $\alpha_i \ge 0$ → el curso está asignado a algún aula.
+2. $\text{cap}_{A_{\alpha_i}} < \text{est}_{c_i}$ → la capacidad es insuficiente.
+
+Estas son exactamente las condiciones de la especificación. `.length` cuenta los índices retenidos.
+
+**Casos borde:**
+- $\text{cap} = \text{est}$: condición `<` es `false` → no falla. Correcto: capacidad exacta es válida. ✓
+- Ningún curso asignado ($\alpha_i = -1$ para todo $i$): `filter` descarta todo → CF = 0. ✓
+
+**Conclusión:** $\forall\, C, A, \alpha : P_{\text{CF}}(C, A, \alpha) = \text{CF}^\alpha_{C,A}$ ✓
 
 ---
 
-#### Ejemplo: Factorial Iterativo
+### Corrección de `desperdicio`
+
+**Especificación:** suma del exceso de capacidad sobre los cursos bien asignados:
+
+$$
+\text{DE}^\alpha_{C,A} = \sum_{\substack{i=0\\\alpha_i \ge 0}}^{n-1} \max\!\bigl(\text{cap}_{A_{\alpha_i}} - \text{est}_{c_i},\; 0\bigr)
+$$
+
+**Implementación:**
 
 ```scala
-def Pf(n: Int): Int = {
-  def Pf_iter(i: Int, n: Int, ac: Int): Int =
-    if (i > n) ac else Pf_iter(i + 1, n, i * ac)
-  Pf_iter(1, n, 1)
+def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+  cursos.indices.toVector.filter { i =>
+    a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i))
+  }.map { i =>
+    capAula(aulas(a(i))) - estCurso(cursos(i))
+  }.sum
 }
 ```
 
-- Estado \$s = (i, n, ac)\$
-- Estado inicial \$s_0 = (1, n, 1)\$
-- Estado final: \$i = n+1\$
-- Invariante: \$\text{Inv}(i,n,ac) \equiv i \leq n+1 \land ac = (i-1)!\$
-- Transformación: \$(i, n, ac) \to (i+1, n, i \cdot ac)\$
+**Argumento de corrección:**
 
-Por inducción sobre la iteración, se demuestra que al llegar a \$s_f\$, \$ac = n!\$.
+El pipeline tiene tres etapas:
+
+**Etapa 1 — `filter`:** selecciona los $i$ con $\alpha_i \ge 0$ y $\text{cap} \ge \text{est}$.
+Esto implementa el $\max(\cdot,0)$ de la especificación: si $\text{cap} < \text{est}$,
+la diferencia sería negativa y se excluye con contribución 0.
+
+**Etapa 2 — `map`:** transforma cada $i$ retenido en $\text{cap}_{A_{\alpha_i}} - \text{est}_{c_i} \ge 0$.
+
+**Etapa 3 — `sum`:** acumula el total.
+
+**Lema de equivalencia del** $\max$**:**
+
+$$
+\texttt{filter}(\text{cap} \ge \text{est}) \circ \texttt{map}(\text{cap} - \text{est})
+\;\equiv\;
+\texttt{map}\!\left(\max(\text{cap} - \text{est},\, 0)\right)
+$$
+
+*Demostración:* Si $\text{cap} \ge \text{est}$, ambas expresiones producen $\text{cap} - \text{est} \ge 0$.
+Si $\text{cap} < \text{est}$, el `filter` excluye el elemento (contribución 0) y
+$\max(\text{cap} - \text{est}, 0) = 0$. Son equivalentes en todos los casos.
+
+**Conclusión:** $\forall\, C, A, \alpha : P_{\text{DE}}(C, A, \alpha) = \text{DE}^\alpha_{C,A}$ ✓
 
 ---
 
-#### Ejemplo: El máximo de una lista
+## Casos de prueba — Integrante 1
 
 ```scala
-def maxIt(l: List[Int]): Int = {
-  def maxAux(max: Int, l: List[Int]): Int = {
-    if (l.isEmpty) max
-    else maxAux(math.max(max, l.head), l.tail)
-  }
-  maxAux(l.head, l.tail)
+// --- solapan ---
+
+test("solapan: M01[4,8) y M02[6,10) se solapan") {
+  assert(solapan(("M01", 4, 8, 25), ("M02", 6, 10, 30)))
+}
+test("solapan: M01[4,8) y M03[12,16) no se solapan") {
+  assert(!solapan(("M01", 4, 8, 25), ("M03", 12, 16, 20)))
+}
+test("solapan: cursos adyacentes [0,4) y [4,8) no se solapan") {
+  assert(!solapan(("A", 0, 4, 10), ("B", 4, 8, 10)))
+}
+test("solapan: solapamiento parcial al final del primero") {
+  assert(solapan(("A", 0, 6, 10), ("B", 4, 10, 10)))
+}
+test("solapan: un curso contenido completamente dentro de otro") {
+  assert(solapan(("X", 2, 10, 15), ("Y", 4, 6, 10)))
+}
+test("solapan: mismo horario exacto se solapa") {
+  assert(solapan(("A", 4, 8, 20), ("B", 4, 8, 20)))
+}
+test("solapan: cursos con brecha entre ellos no se solapan") {
+  assert(!solapan(("A", 0, 4, 10), ("B", 6, 10, 10)))
+}
+test("solapan: segundo empieza justo cuando el primero termina") {
+  assert(!solapan(("A", 6, 10, 25), ("B", 10, 14, 30)))
+}
+
+// --- choques ---
+
+test("choques: asignacion [0,0,1] tiene 1 choque") {
+  assert(choques(c1, Vector(0, 0, 1)) == 1)
+}
+test("choques: asignacion [0,1,0] no tiene choques") {
+  assert(choques(c1, Vector(0, 1, 0)) == 0)
+}
+test("choques: tres cursos solapados en la misma aula producen 3 choques") {
+  val cursos = Vector(("M01", 4, 8, 25), ("M02", 6, 10, 30), ("M03", 5, 7, 20))
+  assert(choques(cursos, Vector(0, 0, 0)) == 3)
+}
+test("choques: misma aula pero cursos adyacentes no generan choque") {
+  val cursos = Vector(("M01", 0, 4, 25), ("M02", 4, 8, 30))
+  assert(choques(cursos, Vector(0, 0)) == 0)
+}
+test("choques: solapamiento en aulas distintas no cuenta") {
+  assert(choques(c1, Vector(0, 1, 1)) == 0)
+}
+test("choques: un solo curso no genera choques") {
+  val cursos = Vector(("M01", 4, 8, 25))
+  assert(choques(cursos, Vector(0)) == 0)
+}
+test("choques: cuatro cursos con dos pares en conflicto") {
+  val cursos = Vector(("A", 0, 6, 10), ("B", 4, 8, 10), ("C", 2, 5, 10), ("D", 3, 7, 10))
+  assert(choques(cursos, Vector(0, 0, 1, 1)) == 2)
+}
+
+// --- capacidadFallida ---
+
+test("capacidadFallida: asignacion [0,0,1] no falla capacidad") {
+  assert(capacidadFallida(c1, a1, Vector(0, 0, 1)) == 0)
+}
+test("capacidadFallida: asignacion [0,1,0] tampoco falla capacidad") {
+  assert(capacidadFallida(c1, a1, Vector(0, 1, 0)) == 0)
+}
+test("capacidadFallida: una aula insuficiente") {
+  val cursos = Vector(("X", 0, 4, 35), ("Y", 4, 8, 20))
+  val aulas  = Vector(("E101", 30), ("E102", 40))
+  assert(capacidadFallida(cursos, aulas, Vector(0, 0)) == 1)
+}
+test("capacidadFallida: todas las aulas insuficientes") {
+  val cursos = Vector(("A", 0, 4, 25), ("B", 4, 8, 30))
+  val aulas  = Vector(("E001", 10))
+  assert(capacidadFallida(cursos, aulas, Vector(0, 0)) == 2)
+}
+test("capacidadFallida: capacidad exactamente igual no falla") {
+  val cursos = Vector(("A", 0, 4, 30))
+  val aulas  = Vector(("E101", 30))
+  assert(capacidadFallida(cursos, aulas, Vector(0)) == 0)
+}
+test("capacidadFallida: ejemplo 2 asignacion [0,1,0,1] tiene 1 fallo") {
+  val c2 = Vector(("F01",0,4,40),("F02",4,8,25),("F03",8,12,50),("F04",12,16,15))
+  val a2 = Vector(("S201",45),("S202",30))
+  assert(capacidadFallida(c2, a2, Vector(0, 1, 0, 1)) == 1)
+}
+
+// --- desperdicio ---
+
+test("desperdicio: asignacion [0,0,1] tiene desperdicio 25") {
+  assert(desperdicio(c1, a1, Vector(0, 0, 1)) == 25)
+}
+test("desperdicio: asignacion [0,1,0] tiene desperdicio 25") {
+  assert(desperdicio(c1, a1, Vector(0, 1, 0)) == 25)
+}
+test("desperdicio: aula exactamente del tamaño del curso no desperdicia") {
+  val cursos = Vector(("A", 0, 4, 30))
+  val aulas  = Vector(("E101", 30))
+  assert(desperdicio(cursos, aulas, Vector(0)) == 0)
+}
+test("desperdicio: aula insuficiente no suma al desperdicio") {
+  val c2 = Vector(("F03", 8, 12, 50))
+  val a2 = Vector(("S201", 45))
+  assert(desperdicio(c2, a2, Vector(0)) == 0)
+}
+test("desperdicio: ejemplo 2 asignacion [0,1,0,1]") {
+  val c2 = Vector(("F01",0,4,40),("F02",4,8,25),("F03",8,12,50),("F04",12,16,15))
+  val a2 = Vector(("S201",45),("S202",30))
+  assert(desperdicio(c2, a2, Vector(0, 1, 0, 1)) == 25)
+}
+test("desperdicio: un curso con mucho espacio sobrante") {
+  val cursos = Vector(("A", 0, 4, 5))
+  val aulas  = Vector(("E101", 50))
+  assert(desperdicio(cursos, aulas, Vector(0)) == 45)
+}
+test("desperdicio: varios cursos todos con sobrante") {
+  val cursos = Vector(("A", 0, 4, 10), ("B", 4, 8, 20), ("C", 8, 12, 30))
+  val aulas  = Vector(("E101", 40))
+  assert(desperdicio(cursos, aulas, Vector(0, 0, 0)) == 60)
 }
 ```
-
-- Estado \$s = (max, l)\$
-- Estado inicial \$s_0 = (a_1, \text{List}(a_2, \ldots, a_k))\$
-- Estado final: \$l = \text{List}()\$
-- Invariante: \$\text{Inv}(max, l) \equiv max = f(\text{prefijo})\$
-- Transformación: \$(max, l) \to (\text{math.max}(max, l.head), l.tail)\$
-
-Por inducción, al llegar al estado final, \$max = f(L)\$.
-
-**Conclusión**:
-
-$$
-P_f(L) == f(L)
-$$
