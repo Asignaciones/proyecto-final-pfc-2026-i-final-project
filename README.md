@@ -13,7 +13,7 @@
 | Nombre completo          | Código       | Correo institucional                          |
 |--------------------------|--------------|-----------------------------------------------|
 | Juan Felipe Aristizabal  | 2459364-3743 | Juan.felipe.aristizabal@correounivalle.edu.co |
-| [Estudiante 2]           |              |                                               |
+| Juan Sebastián Huertas M | 2459505-3743 | Huertas.juan@correounivalle.edu.co            |
 | [Estudiante 3]           |              |                                               |
 
 **Obligatorio:** editar esta tabla con los datos reales de todos los integrantes.
