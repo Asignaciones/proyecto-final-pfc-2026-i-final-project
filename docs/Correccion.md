@@ -306,4 +306,322 @@ test("desperdicio: varios cursos todos con sobrante") {
   val aulas  = Vector(("E101", 40))
   assert(desperdicio(cursos, aulas, Vector(0, 0, 0)) == 60)
 }
+### Corrección de `movilidad`
+ 
+**Especificación:** ordenar los cursos asignados por hora de inicio y sumar las
+distancias entre aulas consecutivas:
+ 
+$$
+\text{MV}^\alpha_{C,A,D} = \sum_{j=0}^{k-2} D\bigl[\alpha_{\sigma_j},\, \alpha_{\sigma_{j+1}}\bigr]
+$$
+ 
+donde $\sigma_0, \ldots, \sigma_{k-1}$ es la permutación que ordena los cursos
+asignados por $\text{ini}_{c_{\sigma_j}}$ de forma creciente, y $k$ es el número
+de cursos asignados ($\alpha_i \ge 0$).
+ 
+**Implementación:**
+ 
+```scala
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val asignados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+ 
+  def sumarDistancias(indices: Vector[Int]): Int =
+    indices match {
+      case _ if indices.length < 2 => 0
+      case _ =>
+        val dist = d(a(indices(0)))(a(indices(1)))
+        dist + sumarDistancias(indices.tail)
+    }
+ 
+  sumarDistancias(asignados)
+}
+```
+
+**Argumento de corrección:**
+
+La implementación se divide en dos partes:
+
+**Parte 1 — construcción de la secuencia ordenada:**
+
+`filter(i => a(i) >= 0)` retiene exactamente los índices con $\alpha_i \ge 0$.
+`sortBy(i => iniCurso(cursos(i)))` los ordena por hora de inicio, produciendo
+la secuencia $\sigma_0, \ldots, \sigma_{k-1}$ de la especificación.
+
+**Parte 2 — recursión sobre `sumarDistancias`:**
+
+Se demuestra por inducción estructural sobre la longitud de `indices`:
+
+- **Caso base** $|\texttt{indices}| < 2$: no hay par consecutivo, la suma es 0. Correcto según la especificación (suma vacía). ✓
+- **Paso inductivo** $|\texttt{indices}| \ge 2$: la hipótesis de inducción establece que
+  `sumarDistancias(indices.tail)` calcula correctamente $\sum_{j=1}^{k-2} D[\alpha_{\sigma_j}, \alpha_{\sigma_{j+1}}]$.
+  La implementación agrega $D[\alpha_{\sigma_0}, \alpha_{\sigma_1}]$, produciendo la suma completa desde $j=0$. ✓
+  **Casos borde:**
+- $k = 0$ o $k = 1$: `length < 2` → retorna 0 (sin pares consecutivos). ✓
+- Todos en la misma aula $j$: $D[j][j] = 0$ → $\text{MV} = 0$. ✓
+  **Conclusión:** $\forall\, C, A, D, \alpha : \texttt{movilidad}(C, A, D, \alpha) = \text{MV}^\alpha_{C,A,D}$ ✓
+
+**Verificación con Ejemplo 1:**
+
+$\alpha = \langle 0, 0, 1 \rangle$, orden: M01(aula=0) → M02(aula=0) → M03(aula=1)
+
+$$\text{MV} = D[0][0] + D[0][1] = 0 + 3 = 3 \checkmark$$
+ 
+---
+
+### Corrección de `costoAsignacion`
+
+**Especificación:**
+
+$$
+\text{CT}^\alpha_{C,A,D} = w_{CH} \cdot \text{CH}^\alpha_C + w_{CF} \cdot \text{CF}^\alpha_{C,A} + w_{DE} \cdot \text{DE}^\alpha_{C,A} + w_{MV} \cdot \text{MV}^\alpha_{C,A,D}
+$$
+
+**Implementación:**
+
+```scala
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+  wCF * capacidadFallida(cursos, aulas, a) +
+  wDE * desperdicio(cursos, aulas, a) +
+  wMV * movilidad(cursos, aulas, d, a)
+}
+```
+
+**Argumento de corrección:**
+
+La implementación es una traducción directa de la fórmula de la especificación.
+Dado que la corrección de `choques`, `capacidadFallida`, `desperdicio` y `movilidad`
+ha sido demostrada individualmente, por sustitución:
+
+$$
+\texttt{costoAsignacion}(C, A, D, \alpha, w)
+= w_{CH} \cdot \text{CH}^\alpha_C + w_{CF} \cdot \text{CF}^\alpha_{C,A}
++ w_{DE} \cdot \text{DE}^\alpha_{C,A} + w_{MV} \cdot \text{MV}^\alpha_{C,A,D}
+  = \text{CT}^\alpha_{C,A,D}
+  $$
+  La corrección se reduce a la corrección de las funciones componentes y a la
+  aritmética entera de Scala, que es correcta para los rangos del problema.
+
+**Verificación con Ejemplo 1:**
+
+$\alpha = \langle 0, 0, 1 \rangle$, $w = (1000, 100, 1, 2)$:
+
+$$\text{CT} = 1000 \cdot 1 + 100 \cdot 0 + 1 \cdot 25 + 2 \cdot 3 = \mathbf{1031} \checkmark$$
+
+$\alpha = \langle 0, 1, 0 \rangle$:
+
+$$\text{CT} = 1000 \cdot 0 + 100 \cdot 0 + 1 \cdot 25 + 2 \cdot 6 = \mathbf{37} \checkmark$$
+
+**Conclusión:** $\forall\, C, A, D, \alpha, w : \texttt{costoAsignacion}(C, A, D, \alpha, w) = \text{CT}^\alpha_{C,A,D}$ ✓
+ 
+---
+
+### Corrección de `generarAsignaciones`
+
+**Especificación:** generar todos los vectores en $\{0,\ldots,m-1\}^n$:
+
+$$
+\texttt{generarAsignaciones}(n, m) = \{0,\ldots,m-1\}^n
+$$
+
+El tamaño del resultado debe ser $m^n$.
+
+**Implementación:**
+
+```scala
+def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] = {
+  if (n == 0) Vector(Vector.empty[Int])
+  else {
+    val subAsignaciones = generarAsignaciones(n - 1, m)
+    (0 until m).toVector.flatMap { aulaIdx =>
+      subAsignaciones.map(sub => aulaIdx +: sub)
+    }
+  }
+}
+```
+
+**Argumento de corrección por inducción sobre $n$:**
+
+**Caso base** $n = 0$:
+
+$$\{0,\ldots,m-1\}^0 = \{\langle\rangle\}$$
+
+La implementación retorna `Vector(Vector.empty)`, que contiene exactamente el vector vacío. ✓
+
+**Hipótesis de inducción:** `generarAsignaciones(n-1, m)` devuelve exactamente $\{0,\ldots,m-1\}^{n-1}$.
+
+**Paso inductivo** $n > 0$:
+
+Todo vector $\langle v_0, v_1, \ldots, v_{n-1}\rangle \in \{0,\ldots,m-1\}^n$ tiene
+$v_0 \in \{0,\ldots,m-1\}$ y $\langle v_1,\ldots,v_{n-1}\rangle \in \{0,\ldots,m-1\}^{n-1}$.
+
+La implementación construye exactamente estos vectores:
+para cada `aulaIdx` $= v_0 \in \{0,\ldots,m-1\}$, antepone `aulaIdx` a cada
+sub-asignación $s \in$ `subAsignaciones` $= \{0,\ldots,m-1\}^{n-1}$ (por HI).
+El `flatMap` concatena todos los grupos, produciendo $\{0,\ldots,m-1\}^n$. ✓
+
+**Tamaño:**
+
+$$|\texttt{generarAsignaciones}(n, m)| = m \cdot |\texttt{generarAsignaciones}(n-1, m)| = m \cdot m^{n-1} = m^n \checkmark$$
+
+**Conclusión:** $\forall\, n \ge 0, m \ge 1 : \texttt{generarAsignaciones}(n, m) = \{0,\ldots,m-1\}^n$ ✓
+ 
+---
+
+### Corrección de `asignacionOptima`
+
+**Especificación:** hallar la asignación $\alpha^* \in \{0,\ldots,m-1\}^n$ que minimiza
+el costo total:
+
+$$
+\alpha^* = \arg\min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha_{C,A,D}
+$$
+
+**Implementación:**
+
+```scala
+def asignacionOptima(cursos: Cursos, aulas: Aulas, d: Distancias,
+                     w: Pesos): (Asignacion, Int) = {
+  val candidatas = generarAsignaciones(cursos.length, aulas.length)
+ 
+  def buscarMinimo(cs: Vector[Asignacion], mejorAsig: Asignacion,
+                   mejorCosto: Int): (Asignacion, Int) =
+    cs match {
+      case Vector() => (mejorAsig, mejorCosto)
+      case _ =>
+        val costo = costoAsignacion(cursos, aulas, d, cs.head, w)
+        if (costo < mejorCosto) buscarMinimo(cs.tail, cs.head, costo)
+        else                    buscarMinimo(cs.tail, mejorAsig, mejorCosto)
+    }
+ 
+  val primera = candidatas.head
+  buscarMinimo(candidatas.tail, primera,
+               costoAsignacion(cursos, aulas, d, primera, w))
+}
+```
+
+**Argumento de corrección:**
+
+La corrección se establece a través del invariante del acumulador de `buscarMinimo`.
+
+**Invariante:** al llamar `buscarMinimo(cs, mejorAsig, mejorCosto)`, se cumple:
+
+$$
+\texttt{mejorCosto} = \min_{\alpha \in \texttt{evaluadas}} \text{CT}^\alpha_{C,A,D}
+\quad \land \quad
+\texttt{costoAsignacion}(\texttt{mejorAsig}) = \texttt{mejorCosto}
+$$
+
+donde `evaluadas` es el conjunto de candidatas ya procesadas.
+
+**Demostración por inducción estructural:**
+
+- **Caso base** `cs = Vector()`: se han evaluado todas las candidatas. El acumulador contiene el mínimo global. Se devuelve `(mejorAsig, mejorCosto)`. ✓
+- **Paso inductivo** `cs = head :: tail`: se calcula `costo = CT(head)`.
+    - Si `costo < mejorCosto`: `head` es la nueva mejor. Se llama recursivamente con `(tail, head, costo)`. El invariante se mantiene. ✓
+    - Si `costo >= mejorCosto`: el acumulador no cambia. Se llama con `(tail, mejorAsig, mejorCosto)`. El invariante se mantiene. ✓
+      **Cobertura:** dado que `generarAsignaciones` produce exactamente $\{0,\ldots,m-1\}^n$
+      (demostrado arriba), `buscarMinimo` evalúa todas las asignaciones posibles, garantizando
+      que el mínimo encontrado es el global.
+
+**Conclusión:** $\forall\, C, A, D, w : \texttt{asignacionOptima}(C, A, D, w)$ devuelve $(\alpha^*, \text{CT}^{\alpha^*})$ ✓
+ 
+---
+
+## Casos de prueba — Integrante 2
+
+```scala
+// --- movilidad ---
+ 
+test("movilidad: asignacion [0,0,1] movilidad 3 segun enunciado") {
+  assert(movilidad(c1, a1, d1, Vector(0, 0, 1)) == 3)
+}
+test("movilidad: asignacion [0,1,0] movilidad 6") {
+  assert(movilidad(c1, a1, d1, Vector(0, 1, 0)) == 6)
+}
+test("movilidad: un solo curso asignado movilidad 0") {
+  assert(movilidad(c1, a1, d1, Vector(0, -1, -1)) == 0)
+}
+test("movilidad: todos en la misma aula movilidad 0") {
+  assert(movilidad(c1, a1, d1, Vector(0, 0, 0)) == 0)
+}
+test("movilidad: ejemplo 2 asignacion [0,1,0,1] movilidad 15") {
+  assert(movilidad(c2, a2, d2, Vector(0, 1, 0, 1)) == 15)
+}
+test("movilidad: orden por hora de inicio respetado") {
+  val cursos = Vector(("C", 2, 4, 10), ("A", 0, 2, 10), ("B", 6, 8, 10))
+  assert(movilidad(cursos, a1, d1, Vector(1, 0, 0)) == 6)
+}
+ 
+// --- costoAsignacion ---
+ 
+test("costoAsignacion: asignacion [0,0,1] cuesta 1031") {
+  assert(costoAsignacion(c1, a1, d1, Vector(0, 0, 1), w) == 1031)
+}
+test("costoAsignacion: asignacion [0,1,0] cuesta 37") {
+  assert(costoAsignacion(c1, a1, d1, Vector(0, 1, 0), w) == 37)
+}
+test("costoAsignacion: ejemplo 2 asignacion [0,1,0,1] cuesta 155") {
+  assert(costoAsignacion(c2, a2, d2, Vector(0, 1, 0, 1), w) == 155)
+}
+test("costoAsignacion: ejemplo 2 asignacion [0,1,1,0] cuesta 160") {
+  assert(costoAsignacion(c2, a2, d2, Vector(0, 1, 1, 0), w) == 160)
+}
+test("costoAsignacion: un curso sin choques ni fallos solo desperdicio") {
+  val cursos = Vector(("A", 0, 4, 10))
+  val aulas  = Vector(("E101", 30))
+  val dist   = Vector(Vector(0))
+  assert(costoAsignacion(cursos, aulas, dist, Vector(0), w) == 20)
+}
+ 
+// --- generarAsignaciones ---
+ 
+test("generarAsignaciones: 2 cursos 2 aulas produce 4 asignaciones") {
+  assert(generarAsignaciones(2, 2).length == 4)
+}
+test("generarAsignaciones: 3 cursos 3 aulas produce 27 asignaciones") {
+  assert(generarAsignaciones(3, 3).length == 27)
+}
+test("generarAsignaciones: 0 cursos produce una asignacion vacia") {
+  val r = generarAsignaciones(0, 3)
+  assert(r.length == 1 && r.head.isEmpty)
+}
+test("generarAsignaciones: 1 curso 3 aulas produce Vector(0), Vector(1), Vector(2)") {
+  val r = generarAsignaciones(1, 3)
+  assert(r.contains(Vector(0)) && r.contains(Vector(1)) && r.contains(Vector(2)))
+}
+test("generarAsignaciones: cada asignacion tiene exactamente n elementos") {
+  assert(generarAsignaciones(4, 3).forall(_.length == 4))
+}
+ 
+// --- asignacionOptima ---
+ 
+test("asignacionOptima: costo optimo no supera 37 en ejemplo 1") {
+  val (_, costo) = asignacionOptima(c1, a1, d1, w)
+  assert(costo <= 37)
+}
+test("asignacionOptima: asignacion devuelta tiene n elementos") {
+  val (asig, _) = asignacionOptima(c1, a1, d1, w)
+  assert(asig.length == c1.length)
+}
+test("asignacionOptima: indices de aula validos") {
+  val (asig, _) = asignacionOptima(c1, a1, d1, w)
+  assert(asig.forall(j => j >= 0 && j < a1.length))
+}
+test("asignacionOptima: costo reportado coincide con costoAsignacion") {
+  val (asig, costo) = asignacionOptima(c1, a1, d1, w)
+  assert(costoAsignacion(c1, a1, d1, asig, w) == costo)
+}
+test("asignacionOptima: un curso una aula devuelve [0]") {
+  val cursos = Vector(("A", 0, 4, 20))
+  val aulas  = Vector(("E101", 30))
+  val dist   = Vector(Vector(0))
+  val (asig, _) = asignacionOptima(cursos, aulas, dist, w)
+  assert(asig == Vector(0))
+}
 ```

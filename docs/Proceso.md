@@ -308,3 +308,358 @@ sequenceDiagram
     Main->>SUM: 5 + 0 + 20
     SUM-->>Main: return 25
 ```
+### `movilidad`
+
+**Implementación:**
+
+```scala
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val asignados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+ 
+  def sumarDistancias(indices: Vector[Int]): Int =
+    indices match {
+      case _ if indices.length < 2 => 0
+      case _ =>
+        val dist = d(a(indices(0)))(a(indices(1)))
+        dist + sumarDistancias(indices.tail)
+    }
+ 
+  sumarDistancias(asignados)
+}
+```
+
+**Enfoque — funciones de alto orden + recursión lineal:**
+
+Se usa `filter` para retener solo los cursos asignados, `sortBy` para ordenarlos
+por hora de inicio, y luego una función auxiliar recursiva `sumarDistancias` que
+recorre la secuencia ordenada acumulando la distancia entre aulas consecutivas.
+
+$$
+\text{MV}^\alpha_{C,A,D} = \sum_{j=0}^{k-2} D\bigl[\alpha_{\sigma_j},\, \alpha_{\sigma_{j+1}}\bigr]
+$$
+
+donde $\sigma_0, \ldots, \sigma_{k-1}$ es el orden de los cursos asignados por hora de inicio.
+ 
+---
+
+### Pila de llamadas de `sumarDistancias`
+
+**Entrada:** $C_1$, $\alpha = \langle 0, 0, 1 \rangle$
+
+Cursos asignados ordenados por ini: M01(ini=4, aula=0), M02(ini=6, aula=0), M03(ini=12, aula=1)  
+→ `indices = Vector(0, 1, 2)`
+
+```
+sumarDistancias(Vector(0, 1, 2))
+  dist = D[a(0)][a(1)] = D[0][0] = 0
+  0 + sumarDistancias(Vector(1, 2))
+        dist = D[a(1)][a(2)] = D[0][1] = 3
+        3 + sumarDistancias(Vector(2))
+              length < 2 → return 0
+            = 3 + 0 = 3
+      = 0 + 3 = 3
+```
+
+**Resultado:** **3** ✓
+ 
+---
+
+### Diagrama de pila de `movilidad`
+
+```mermaid
+sequenceDiagram
+    participant Main as movilidad(C1, A1, D1, α=[0,0,1])
+    participant FIL  as filter + sortBy
+    participant S1   as sumarDistancias(Vector(0,1,2))
+    participant S2   as sumarDistancias(Vector(1,2))
+    participant S3   as sumarDistancias(Vector(2))
+ 
+    Main->>FIL: filtrar asignados y ordenar por iniCurso
+    FIL-->>Main: Vector(0, 1, 2)
+ 
+    Main->>S1: D[a(0)][a(1)] = D[0][0] = 0
+    S1->>S2: sumarDistancias(Vector(1,2))
+    S2->>S3: sumarDistancias(Vector(2))
+    S3-->>S2: length < 2 return 0
+    S2-->>S1: D[a(1)][a(2)] = D[0][1] = 3, return 3+0=3
+    S1-->>Main: return 0+3=3
+```
+ 
+---
+
+### Traza de `movilidad` — segundo ejemplo
+
+**Entrada:** $C_1$, $\alpha = \langle 0, 1, 0 \rangle$
+
+Orden por ini: M01(aula=0) → M02(aula=1) → M03(aula=0)
+
+```
+sumarDistancias(Vector(0, 1, 2))
+  dist = D[0][1] = 3
+  3 + sumarDistancias(Vector(1, 2))
+        dist = D[1][0] = 3
+        3 + sumarDistancias(Vector(2))
+              length < 2 → return 0
+            = 3 + 0 = 3
+      = 3 + 3 = 6
+```
+
+**Resultado:** **6** ✓
+ 
+---
+
+### `costoAsignacion`
+
+**Implementación:**
+
+```scala
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+  wCF * capacidadFallida(cursos, aulas, a) +
+  wDE * desperdicio(cursos, aulas, a) +
+  wMV * movilidad(cursos, aulas, d, a)
+}
+```
+
+**Enfoque — combinación directa con pesos:**
+
+`costoAsignacion` no es recursiva. Desempaca los pesos $w = (w_{CH}, w_{CF}, w_{DE}, w_{MV})$
+y combina los cuatro componentes según la fórmula:
+
+$$
+\text{CT}^\alpha_{C,A,D} = w_{CH} \cdot \text{CH}^\alpha_C + w_{CF} \cdot \text{CF}^\alpha_{C,A} + w_{DE} \cdot \text{DE}^\alpha_{C,A} + w_{MV} \cdot \text{MV}^\alpha_{C,A,D}
+$$
+ 
+---
+
+### Traza de `costoAsignacion`
+
+**Entrada:** $C_1$, $A_1$, $D_1$, $\alpha = \langle 0, 0, 1 \rangle$, $w = (1000, 100, 1, 2)$
+
+| Componente | Función llamada | Valor |
+|-----------|----------------|-------|
+| $\text{CH}$ | `choques(C1, [0,0,1])` | 1 |
+| $\text{CF}$ | `capacidadFallida(C1, A1, [0,0,1])` | 0 |
+| $\text{DE}$ | `desperdicio(C1, A1, [0,0,1])` | 25 |
+| $\text{MV}$ | `movilidad(C1, A1, D1, [0,0,1])` | 3 |
+
+$$
+\text{CT} = 1000 \cdot 1 + 100 \cdot 0 + 1 \cdot 25 + 2 \cdot 3 = 1000 + 0 + 25 + 6 = \mathbf{1031}
+$$
+
+**Resultado:** **1031** ✓
+ 
+---
+
+### Traza de `costoAsignacion` — asignación óptima del ejemplo 1
+
+**Entrada:** $\alpha = \langle 0, 1, 0 \rangle$, $w = (1000, 100, 1, 2)$
+
+| Componente | Valor |
+|-----------|-------|
+| $\text{CH}$ | 0 |
+| $\text{CF}$ | 0 |
+| $\text{DE}$ | 25 |
+| $\text{MV}$ | 6 |
+
+$$
+\text{CT} = 1000 \cdot 0 + 100 \cdot 0 + 1 \cdot 25 + 2 \cdot 6 = 0 + 0 + 25 + 12 = \mathbf{37}
+$$
+
+**Resultado:** **37** ✓
+ 
+---
+
+### Diagrama de llamados de `costoAsignacion`
+
+```mermaid
+sequenceDiagram
+    participant Main as costoAsignacion(C1,A1,D1,α=[0,0,1],w)
+    participant CH   as choques
+    participant CF   as capacidadFallida
+    participant DE   as desperdicio
+    participant MV   as movilidad
+ 
+    Main->>CH: choques(C1, [0,0,1])
+    CH-->>Main: 1
+ 
+    Main->>CF: capacidadFallida(C1, A1, [0,0,1])
+    CF-->>Main: 0
+ 
+    Main->>DE: desperdicio(C1, A1, [0,0,1])
+    DE-->>Main: 25
+ 
+    Main->>MV: movilidad(C1, A1, D1, [0,0,1])
+    MV-->>Main: 3
+ 
+    Main-->>Main: 1000*1 + 100*0 + 1*25 + 2*3 = 1031
+```
+ 
+---
+
+### `generarAsignaciones`
+
+**Implementación:**
+
+```scala
+def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] = {
+  if (n == 0) Vector(Vector.empty[Int])
+  else {
+    val subAsignaciones = generarAsignaciones(n - 1, m)
+    (0 until m).toVector.flatMap { aulaIdx =>
+      subAsignaciones.map(sub => aulaIdx +: sub)
+    }
+  }
+}
+```
+
+**Enfoque — recursión lineal + funciones de alto orden:**
+
+La función genera todas las combinaciones en $\{0,\ldots,m-1\}^n$ por recursión
+sobre $n$. Para cada valor de aula posible `aulaIdx`, antepone ese valor a cada
+sub-asignación de $n-1$ cursos. El resultado tiene tamaño $m^n$.
+
+**Casos de la recursión:**
+
+- **Caso base** $n = 0$: no hay cursos, existe exactamente una asignación: el vector vacío.
+- **Paso recursivo** $n > 0$: para cada `aulaIdx` $\in \{0,\ldots,m-1\}$, se antepone a cada sub-asignación de $n-1$ cursos.
+  $$
+  \text{generarAsignaciones}(0, m) = \{\langle\rangle\}
+  $$
+
+$$
+\text{generarAsignaciones}(n, m) = \bigcup_{j=0}^{m-1} \bigl\{ j \cdot s \mid s \in \text{generarAsignaciones}(n-1, m) \bigr\}
+$$
+ 
+---
+
+### Pila de llamadas de `generarAsignaciones`
+
+**Entrada:** $n = 2$, $m = 2$
+
+```
+generarAsignaciones(2, 2)
+  subAsignaciones = generarAsignaciones(1, 2)
+    subAsignaciones = generarAsignaciones(0, 2)
+      → Vector(Vector())           // caso base
+    aulaIdx=0: Vector() → Vector(Vector(0))
+    aulaIdx=1: Vector() → Vector(Vector(1))
+    → Vector(Vector(0), Vector(1))
+  aulaIdx=0: map sub => 0 +: sub → Vector(Vector(0,0), Vector(0,1))
+  aulaIdx=1: map sub => 1 +: sub → Vector(Vector(1,0), Vector(1,1))
+  → Vector(Vector(0,0), Vector(0,1), Vector(1,0), Vector(1,1))
+```
+
+**Resultado:** 4 asignaciones ($m^n = 2^2 = 4$) ✓
+ 
+---
+
+### Diagrama de pila de `generarAsignaciones`
+
+```mermaid
+sequenceDiagram
+    participant G2 as generarAsignaciones(2,2)
+    participant G1 as generarAsignaciones(1,2)
+    participant G0 as generarAsignaciones(0,2)
+ 
+    G2->>G1: n=1, m=2
+    G1->>G0: n=0, m=2
+    G0-->>G1: Vector(Vector()) caso base
+ 
+    G1-->>G2: aulaIdx=0 => Vector(0)\naulaIdx=1 => Vector(1)\nreturn Vector(Vector(0),Vector(1))
+ 
+    G2-->>G2: aulaIdx=0 => Vector(0,0),Vector(0,1)\naulaIdx=1 => Vector(1,0),Vector(1,1)\nreturn Vector(Vector(0,0),Vector(0,1),Vector(1,0),Vector(1,1))
+```
+ 
+---
+
+### `asignacionOptima`
+
+**Implementación:**
+
+```scala
+def asignacionOptima(cursos: Cursos, aulas: Aulas, d: Distancias,
+                     w: Pesos): (Asignacion, Int) = {
+  val candidatas = generarAsignaciones(cursos.length, aulas.length)
+ 
+  def buscarMinimo(cs: Vector[Asignacion], mejorAsig: Asignacion,
+                   mejorCosto: Int): (Asignacion, Int) =
+    cs match {
+      case Vector() => (mejorAsig, mejorCosto)
+      case _ =>
+        val costo = costoAsignacion(cursos, aulas, d, cs.head, w)
+        if (costo < mejorCosto) buscarMinimo(cs.tail, cs.head, costo)
+        else                    buscarMinimo(cs.tail, mejorAsig, mejorCosto)
+    }
+ 
+  val primera = candidatas.head
+  buscarMinimo(candidatas.tail, primera,
+               costoAsignacion(cursos, aulas, d, primera, w))
+}
+```
+
+**Enfoque — recursión de cola con acumulador:**
+
+`asignacionOptima` genera todas las candidatas con `generarAsignaciones` y luego
+usa la función auxiliar `buscarMinimo` con recursión de cola. El acumulador guarda
+la mejor asignación y su costo vistos hasta el momento. Al agotar la lista, devuelve
+el acumulador.
+
+**Invariante del acumulador:**
+
+> Al llamar `buscarMinimo(cs, mejorAsig, mejorCosto)`, se cumple que
+> `mejorAsig` es la asignación de mínimo costo entre todas las candidatas
+> ya evaluadas, y `mejorCosto = costoAsignacion(mejorAsig)`.
+ 
+---
+
+### Pila de llamadas de `asignacionOptima`
+
+**Entrada:** $C_1$, $A_1$, $D_1$, $w = (1000, 100, 1, 2)$
+
+Candidatas generadas ($m^n = 2^3 = 8$):
+
+```
+α0=[0,0,0], α1=[0,0,1], α2=[0,1,0], α3=[0,1,1]
+α4=[1,0,0], α5=[1,0,1], α6=[1,1,0], α7=[1,1,1]
+```
+
+Traza de `buscarMinimo` (mostrando solo los cambios de mejor):
+
+```
+buscarMinimo([α1..α7], α0, CT(α0))
+  CT(α0) = 1000*0+100*0+1*15+2*0 = 15   ← mejor inicial
+  CT(α1) = 1031  > 15  → sin cambio
+  CT(α2) = 37    > 15  → sin cambio
+  CT(α3) = ...
+  ...
+  → (α0, 15)  ← asignación óptima
+```
+
+**Resultado:** la asignación de costo mínimo y su costo ✓
+ 
+---
+
+### Diagrama de pila de `asignacionOptima`
+
+```mermaid
+sequenceDiagram
+    participant Main as asignacionOptima(C1,A1,D1,w)
+    participant GEN  as generarAsignaciones(3,2)
+    participant BM1  as buscarMinimo(cola, α0, CT0)
+    participant BM2  as buscarMinimo(cola, mejor, costoMejor)
+    participant BMN  as buscarMinimo(Vector(), mejor, costoMejor)
+ 
+    Main->>GEN: generar 8 candidatas
+    GEN-->>Main: Vector(α0,...,α7)
+ 
+    Main->>BM1: evaluar α1, comparar con CT(α0)
+    BM1->>BM2: actualizar o mantener mejor
+    BM2-->>BMN: recursion hasta agotar candidatas
+    BMN-->>Main: return (mejorAsig, mejorCosto)
+```
