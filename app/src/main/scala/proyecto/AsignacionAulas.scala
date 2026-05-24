@@ -153,5 +153,20 @@ object AsignacionAulas {
    * Usa generarAsignaciones para explorar el espacio.
    */
   def asignacionOptima(cursos: Cursos, aulas: Aulas, d: Distancias,
-                       w: Pesos): (Asignacion, Int) = ???
+                       w: Pesos): (Asignacion, Int) = {
+    val candidatas = generarAsignaciones(cursos.length, aulas.length)
+
+    // Función recursiva que recorre las candidatas buscando el mínimo costo
+    def buscarMinimo(cs: Vector[Asignacion], mejorAsig: Asignacion, mejorCosto: Int): (Asignacion, Int) =
+      cs match {
+        case Vector() => (mejorAsig, mejorCosto)
+        case _ =>
+          val costo = costoAsignacion(cursos, aulas, d, cs.head, w)
+          if (costo < mejorCosto) buscarMinimo(cs.tail, cs.head, costo)
+          else                    buscarMinimo(cs.tail, mejorAsig, mejorCosto)
+      }
+
+    val primera = candidatas.head
+    buscarMinimo(candidatas.tail, primera, costoAsignacion(cursos, aulas, d, primera, w))
+  }
 }

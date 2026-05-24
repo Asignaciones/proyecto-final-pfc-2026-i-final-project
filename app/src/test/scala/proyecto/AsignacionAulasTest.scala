@@ -242,4 +242,26 @@ class AsignacionAulasTest extends AnyFunSuite {
     val (_, costo) = asignacionOptima(c1, a1, d1, w)
     assert(costo <= 37)
   }
+  test("asignacionOptima: la asignacion devuelta tiene exactamente n cursos") {
+    val (asig, _) = asignacionOptima(c1, a1, d1, w)
+    assert(asig.length == c1.length)
+  }
+
+  test("asignacionOptima: todos los indices de aula son validos") {
+    val (asig, _) = asignacionOptima(c1, a1, d1, w)
+    assert(asig.forall(j => j >= 0 && j < a1.length))
+  }
+
+  test("asignacionOptima: el costo reportado coincide con costoAsignacion de la asignacion devuelta") {
+    val (asig, costo) = asignacionOptima(c1, a1, d1, w)
+    assert(costoAsignacion(c1, a1, d1, asig, w) == costo)
+  }
+
+  test("asignacionOptima: con un solo curso y una sola aula la optima es [0]") {
+    val cursos = Vector(("A", 0, 4, 20))
+    val aulas  = Vector(("E101", 30))
+    val dist   = Vector(Vector(0))
+    val (asig, _) = asignacionOptima(cursos, aulas, dist, w)
+    assert(asig == Vector(0))
+  }
 }
