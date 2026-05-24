@@ -14,6 +14,11 @@ class AsignacionAulasTest extends AnyFunSuite {
   val d1: Distancias = Vector(Vector(0, 3), Vector(3, 0))
   val w: Pesos      = (1000, 100, 1, 2)
 
+  // Ejemplo 2 del enunciado: 4 cursos, 2 aulas (F03 no cabe en ninguna)
+  val c2: Cursos     = Vector(("F01", 0, 4, 40), ("F02", 4, 8, 25), ("F03", 8, 12, 50), ("F04", 12, 16, 15))
+  val a2: Aulas      = Vector(("S201", 45), ("S202", 30))
+  val d2: Distancias = Vector(Vector(0, 5), Vector(5, 0))
+
   // solapan
   test("solapan: solapamiento parcial al final del primero") {
     // [0,6) y [4,10) se solapan en [4,6)
@@ -206,6 +211,32 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(generarAsignaciones(3, 3).length == 27)
   }
 
+  test("generarAsignaciones: 0 cursos produce exactamente una asignacion vacia") {
+    val resultado = generarAsignaciones(0, 3)
+    assert(resultado.length == 1)
+    assert(resultado.head.isEmpty)
+  }
+
+  test("generarAsignaciones: 1 curso 3 aulas produce 3 asignaciones una por aula") {
+    val resultado = generarAsignaciones(1, 3)
+    assert(resultado.length == 3)
+    assert(resultado.contains(Vector(0)))
+    assert(resultado.contains(Vector(1)))
+    assert(resultado.contains(Vector(2)))
+  }
+
+  test("generarAsignaciones: todas las asignaciones de 2 cursos 2 aulas son correctas") {
+    val resultado = generarAsignaciones(2, 2)
+    assert(resultado.contains(Vector(0, 0)))
+    assert(resultado.contains(Vector(0, 1)))
+    assert(resultado.contains(Vector(1, 0)))
+    assert(resultado.contains(Vector(1, 1)))
+  }
+
+  test("generarAsignaciones: cada asignacion tiene exactamente n elementos") {
+    val resultado = generarAsignaciones(4, 3)
+    assert(resultado.forall(_.length == 4))
+  }
   // asignacionOptima
   test("asignacionOptima: el costo de la optima no supera el de [0,1,0] (37)") {
     val (_, costo) = asignacionOptima(c1, a1, d1, w)

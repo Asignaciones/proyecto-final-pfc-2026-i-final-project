@@ -136,7 +136,17 @@ object AsignacionAulas {
    * Genera todas las asignaciones completas posibles: vectores en {0,..,m-1}^n.
    * El tamaño del resultado es m^n.
    */
-  def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] = ???
+  def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] = {
+    // Caso base: 0 cursos → una sola asignación vacía
+    // Paso recursivo: para cada asignación de (n-1) cursos, anteponemos cada valor 0..m-1
+    if (n == 0) Vector(Vector.empty[Int])
+    else {
+      val subAsignaciones = generarAsignaciones(n - 1, m)
+      (0 until m).toVector.flatMap { aulaIdx =>
+        subAsignaciones.map(sub => aulaIdx +: sub)
+      }
+    }
+  }
 
   /**
    * Devuelve la asignación de mínimo costo y su costo.
