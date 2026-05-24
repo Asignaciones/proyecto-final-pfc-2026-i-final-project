@@ -104,7 +104,23 @@ object AsignacionAulas {
    * entre aulas de cursos consecutivos.
    */
   def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
-                a: Asignacion): Int = ???
+                a: Asignacion): Int = {
+    // Filtramos los índices de cursos asignados (a(i) >= 0) y los ordenamos por hora de inicio
+    val asignados = cursos.indices.toVector
+      .filter(i => a(i) >= 0)
+      .sortBy(i => iniCurso(cursos(i)))
+
+    // Función auxiliar recursiva que recorre la secuencia ordenada sumando distancias
+    def sumarDistancias(indices: Vector[Int]): Int =
+      indices match {
+        case _ if indices.length < 2 => 0
+        case _                       =>
+          val dist = d(a(indices(0)))(a(indices(1)))
+          dist + sumarDistancias(indices.tail)
+      }
+
+    sumarDistancias(asignados)
+  }
 
   /** Costo total: w_CH * CH + w_CF * CF + w_DE * DE + w_MV * MV. */
   def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
