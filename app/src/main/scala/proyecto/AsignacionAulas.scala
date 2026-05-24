@@ -124,7 +124,13 @@ object AsignacionAulas {
 
   /** Costo total: w_CH * CH + w_CF * CF + w_DE * DE + w_MV * MV. */
   def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
-                      a: Asignacion, w: Pesos): Int = ???
+                      a: Asignacion, w: Pesos): Int = {
+    val (wCH, wCF, wDE, wMV) = w
+    wCH * choques(cursos, a) +
+      wCF * capacidadFallida(cursos, aulas, a) +
+      wDE * desperdicio(cursos, aulas, a) +
+      wMV * movilidad(cursos, aulas, d, a)
+  }
 
   /**
    * Genera todas las asignaciones completas posibles: vectores en {0,..,m-1}^n.

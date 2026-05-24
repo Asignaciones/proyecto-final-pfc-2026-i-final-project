@@ -179,7 +179,24 @@ class AsignacionAulasTest extends AnyFunSuite {
   test("costoAsignacion: asignacion [0,1,0] cuesta 37") {
     assert(costoAsignacion(c1, a1, d1, Vector(0, 1, 0), w) == 37)
   }
+  test("costoAsignacion: ejemplo 2 asignacion [0,1,0,1] cuesta 155 segun enunciado") {
+    // CH=0, CF=1, DE=25, MV=15 → 0+100+25+30=155
+    assert(costoAsignacion(c2, a2, d2, Vector(0, 1, 0, 1), w) == 155)
+  }
 
+  test("costoAsignacion: ejemplo 2 asignacion [0,1,1,0] cuesta 160 segun enunciado") {
+    // CH=0, CF=1, DE=40, MV=10 → 0+100+40+20=160
+    assert(costoAsignacion(c2, a2, d2, Vector(0, 1, 1, 0), w) == 160)
+  }
+
+  test("costoAsignacion: sin choques ni fallos — solo desperdicio y movilidad") {
+    // Un solo curso, aula suficiente
+    val cursos = Vector(("A", 0, 4, 10))
+    val aulas  = Vector(("E101", 30))
+    val dist   = Vector(Vector(0))
+    // CH=0, CF=0, DE=20, MV=0 → 20
+    assert(costoAsignacion(cursos, aulas, dist, Vector(0), w) == 20)
+  }
   // generarAsignaciones
   test("generarAsignaciones: 2 cursos y 2 aulas produce 4 asignaciones") {
     assert(generarAsignaciones(2, 2).length == 4)
