@@ -137,6 +137,40 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(desperdicio(cursos, aulas, Vector(0, 0, 0)) == 60)
   }
 
+  //Movilidad
+  test("movilidad: asignacion [0,0,1] — orden M01,M02,M03 — distancias D[0,0]+D[0,1]=0+3=3") {
+    // Cursos ordenados por ini: M01(4), M02(6), M03(12)
+    // aulas: 0,0,1 → D[0][0] + D[0][1] = 0 + 3 = 3
+    assert(movilidad(c1, a1, d1, Vector(0, 0, 1)) == 3)
+  }
+
+  test("movilidad: asignacion [0,1,0] — distancias D[0,1]+D[1,0]=3+3=6") {
+    // M01(aula0)→M02(aula1)→M03(aula0): D[0][1]+D[1][0] = 3+3 = 6
+    assert(movilidad(c1, a1, d1, Vector(0, 1, 0)) == 6)
+  }
+
+  test("movilidad: un solo curso asignado — movilidad 0") {
+    // Sin pares consecutivos, no hay distancia que sumar
+    assert(movilidad(c1, a1, d1, Vector(0, -1, -1)) == 0)
+  }
+
+  test("movilidad: todos en la misma aula — distancias 0") {
+    // D[j][j] = 0 para todo j
+    assert(movilidad(c1, a1, d1, Vector(0, 0, 0)) == 0)
+  }
+
+  test("movilidad: ejemplo 2 asignacion [0,1,0,1] — cursos consecutivos F01,F02,F03,F04") {
+    // No se solapan, orden ini: F01(0),F02(4),F03(8),F04(12)
+    // aulas: 0,1,0,1 → D[0][1]+D[1][0]+D[0][1] = 5+5+5 = 15
+    assert(movilidad(c2, a2, d2, Vector(0, 1, 0, 1)) == 15)
+  }
+
+  test("movilidad: orden por hora de inicio respetado independientemente del orden en el vector") {
+    // C(ini=2), A(ini=0), B(ini=6) — deben ordenarse A,C,B
+    // aulas: A→0, C→1, B→0 → D[0][1]+D[1][0] = 3+3 = 6
+    val cursos = Vector(("C", 2, 4, 10), ("A", 0, 2, 10), ("B", 6, 8, 10))
+    assert(movilidad(cursos, a1, d1, Vector(1, 0, 0)) == 6)
+  }
   // costoAsignacion
   test("costoAsignacion: asignacion [0,0,1] cuesta 1031") {
     assert(costoAsignacion(c1, a1, d1, Vector(0, 0, 1), w) == 1031)
